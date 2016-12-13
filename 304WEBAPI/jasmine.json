@@ -1,0 +1,8 @@
+{
+	"spec_files": [
+		"favourites-spec.js"
+	],
+	"helpers": [
+		"helpers/**/*.js"
+	]
+}
