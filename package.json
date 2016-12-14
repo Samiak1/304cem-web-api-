@@ -9,7 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "eslint": "^3.12.1",
     "request": "^2.79.0",
     "restify": "^4.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.12.1"
   }
 }

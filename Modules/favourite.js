@@ -2,33 +2,35 @@
 
 const storage = require('node-persist')  // use basic file-based data persistence
 const favouriteConnection = require('./database').favouriteConnection
+storage.initSync()
+
+
 
 exports.validate = function validate(req, res, next) {
 	const favourite = req.body
-	if (!favourite) return res.send(400, {Message: 'Need to send some data'})
-	if (!favourite.id) return res.send(400, {Message: 'id are missing'})
-
-	// TODO: you would also want to ensure no *extra* fields are sent (or ignore them in the methods below)
-
-	next()
+	if (!favourite) return res.send(400, {Message: 'Need to send some data'})	// Checks if any data was sent to playlist
+	if (!favourite.id || !favourite.label || !favourite.dietlabel) return res.send(400, {Message: 'id, label or dietlabel is missing'}) //Requires id,artist and track. If missing send error.
+	next() //Moves to next function
 }
 
 exports.list = function list(req, res) {
 	// Returns the favourites with all the items
-	favouriteConnection(req, res, favourite => res.send({Favourites: favourite.values()}))
+	favouriteConnection(req, res, favourites => res.send({Favourites: favourites.values()}))
 }
-
+// ADD ITEMS \\
 exports.add = function add(req, res) {
 
-	// connect to the favourites DB and save the cake
-	favouriteConnection(req, res, favourite => {
+	// connect to the playlist database then saves the item
+	favouriteConnection(req, res, favourites => {
 
-		// Check if id is used
+		// first check that the id is not used already
 		const list = req.body
 
-		if (favourite.getItemSync(list.id)) return res.send(400, {message: 'id already exists', id: list.id})
+		if (favourites.getItemSync(list.id)) return res.send(400, {message: 'id already exists', id: list.id})
 
-		favourite.setItem(list.id, list, err => {
+		// Checks the data and adds to playlist
+
+		favourites.setItem(list.id, list, err => {
 			if (err) {
 				console.log(err)
 				return res.send(500, {message: 'Could not add to favourites', list: list})
@@ -36,52 +38,51 @@ exports.add = function add(req, res) {
 				return res.send(201, {message: 'Added to favourites', list: list})
 			}
 		})
-		res.send(JSON.parse(list))
 	})
 }
-
+// GETS THE PLAYLIST \\
 exports.get = function get (req, res, next) {
-	// use the ID in the URL to look up a particular favourite
+	// use the ID in the URL to look up a particular track
 	const cakeid = req.params.id
 
-	// connect to the favourites DB then get the requested item
+	// connects to the playlists database and request a track
 	favouriteConnection(req, res, favourite => {
 		favourite.getItem(cakeid, (err, cake) => {
-			if (err) return res.send(500, {message: 'Couldnt get the favourites list'})
+			if (err) return res.send(500, {message: 'Couldnt get the playlist'})
 
-			// cake will be undefined if there was no match
-			if (!cake) return res.send(404, {message: 'cake id not found', id: cakeid})
+			// track will be undefined if there was no match
+			if (!cake) return res.send(404, {message: 'id not found', id: cakeid})
 			
-			// otherwise return the cake object
+			// otherwise return the tracks object
 			res.send({favourite: cakeid})
 		})
 	})
+	next()
 }
 
 
-// UPDATE THE FAVOURITES
+
+																	/// UPDATING \\\
 exports.update = function updateItem (req, res, next) {
-	// use the ID in the URL to ensure the fav exists, then overwrite it
+	// use the ID in the URL to ensure the playlist exists, then overwrite it
 	res.setHeader('content-type', 'application/json')
 	res.setHeader('Allow', 'GET, PUT')
 	
-	favouriteConnection(req, res, favourite => {
+	favouriteConnection(req, res, favourites => {
 		// removes current item and adds new one with updated data
 		const list = req.body
 		
-		if (favourite.removeItemSync(list.id)) return res.send(400, {message: 'Favourites updated', id: list.id})
-		favourite.removeItem(list.id, list, err => {
+		if (favourites.removeItemSync(list.id)) return res.send(400, {message: 'Favourites updated', id: list.id})
+		favourites.removeItem(list.id, list, err => {
 			if(err) return res.send(404, {Message: 'delete error'}, null)
 		})
 	})
 	
-		favouriteConnection(req, res, favourite => {
+		favouriteConnection(req, res, favourites => {
 
 		const list = req.body
 
-		// TODO: omit the fields you don't want to save from book, before saving
-
-		favourite.setItem(list.id, list, err => {
+		favourites.setItem(list.id, list, err => {
 			if (err) {
 				console.log(err)
 				return res.send(500, {list: list})
@@ -90,27 +91,28 @@ exports.update = function updateItem (req, res, next) {
 			}
 		})
 	})
-	
 }
 
 
+
+
+
+
+// DELETE ITEM FROM PLAYLIST \\
 exports.deleteItem = function deleteItem (req, res, next) {
-	// use the ID in the URL to remove a specific favourite
-	res.setHeader('content-type', 'application/json')
-	res.setHeader('Allow', 'GET, POST, DELETE')
+	// use the ID in the URL to remove a specific item from playlist
 	
-	
-	favouriteConnection(req, res, favourite => {
-		// first check that the id is not used already
-		
+	favouriteConnection(req, res, favourites => {
+		res.setHeader('content-type', 'application/json')
+		res.setHeader('Allow', 'GET, POST, DELETE')
 		const list = req.body
-		// Deletes favourites
-		if (favourite.removeItemSync(list.id)) return res.send(400, {message: 'Favourites deleted', id: list.id})
-		favourite.removeItem(list.id, list, err => {
-			if(err) return res.send(404, {Message: 'Favourites deleted'}, deleteItem.item)
-			//Return empty favourites list
-		res.send(500, {message: 'Favourite is empty'})
-		res.send(JSON.parse(list)).item
+		
+		if (favourites.removeItemSync(list.id)) return res.send(400, {message: 'Favourites deleted', id: list.id})
+		// Removes a playlist 
+		favourites.removeItem(list.id, list, err => {
+			if(err) return res.send(404, {Message: 'favourites deleted'}, deleteItem.item)
+		res.send(500, {message: 'Favourites empty'})
+		res.send(JSON.parse(list)).item // Returns empty playlist
 		})
 	})
 }
