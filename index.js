@@ -24,7 +24,7 @@ server.put('/favourite/:id', authorization.authorize,favourite.validate, favouri
 
 server.post('/users', users.validateUser, users.add)  // add a new user to the DB (pending confirmation)
 server.post('/users/confirm/:username', users.validateCode, users.confirm)  // confirm a pending user
-server.del('/users/:username', authorization.authorize, users.delete) 
+server.del('/users/:username', authorization.authorize, users.delete) // deletes excisting user
 
 
 const port = process.env.PORT || 8080
